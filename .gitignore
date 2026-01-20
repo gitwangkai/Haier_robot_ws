@@ -1,0 +1,20 @@
+# 排除所有文件
+*
+
+# 但保留以下文件和目录
+!run.sh
+!send.sh
+!robot.rviz
+!run_blazepose.sh
+!src/
+
+# 保留src目录下的所有内容
+!src/**/*
+
+# 排除src目录下的虚拟环境和旧版本目录
+src/*/venv/
+src/BlazeposeRobot_old/
+
+# 排除隐藏文件
+.*
+!.gitignore
