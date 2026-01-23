@@ -1,0 +1,7 @@
+<launch>
+    <!-- 音频播放器节点 -->
+    <node pkg="robot_music" type="music_player_node.py" name="music_player_node" output="screen">
+        <!-- 音频文件默认目录参数 -->
+        <param name="audio_dir" value="/home/aidlux/Haier_robot_ws/src/config/music" />
+    </node>
+</launch>
