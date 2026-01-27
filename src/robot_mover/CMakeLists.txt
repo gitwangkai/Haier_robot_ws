@@ -26,6 +26,7 @@ set(rosidl_generate_interfaces_DEPENDENCIES
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Rotate.srv"
   "srv/PauseRotation.srv"
+  "srv/StopRotation.srv"
   DEPENDENCIES ${rosidl_generate_interfaces_DEPENDENCIES}
 )
 

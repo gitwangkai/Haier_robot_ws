@@ -4,19 +4,29 @@ import { exec } from 'child_process';
 // 处理 POST 请求，停止机器人所有动作并恢复到初始状态
 export async function POST(request: NextRequest) {
   try {
-    // 执行停止服务调用命令
-    // 这里我们可以通过发布一个速度为 0 的 Twist 消息来停止机器人
-    const command = `cd /home/aidlux/Haier_robot_ws && source install/setup.bash && ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"`;
+    // 执行停止旋转服务调用命令
+    const stopRotationCommand = `cd /home/aidlux/Haier_robot_ws && source install/setup.bash && ros2 service call /robot_mover/stop_rotation robot_mover/srv/StopRotation "{stop: true}"`;
     
     // 使用 exec 执行命令
     const result = await new Promise<string>((resolve, reject) => {
-      exec(command, (error, stdout, stderr) => {
+      exec(stopRotationCommand, (error, stdout, stderr) => {
         if (error) {
-          console.error('执行停止命令失败:', error);
+          console.error('执行停止旋转命令失败:', error);
           console.error('错误输出:', stderr);
-          reject(error);
+          // 即使停止旋转服务调用失败，也发布停止消息
+          const stopCommand = `cd /home/aidlux/Haier_robot_ws && source install/setup.bash && ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"`;
+          exec(stopCommand, (stopError, stopStdout, stopStderr) => {
+            if (stopError) {
+              console.error('执行停止命令失败:', stopError);
+              console.error('错误输出:', stopStderr);
+              reject(stopError);
+            } else {
+              console.log('停止命令执行成功:', stopStdout);
+              resolve(stopStdout);
+            }
+          });
         } else {
-          console.log('停止命令执行成功:', stdout);
+          console.log('停止旋转命令执行成功:', stdout);
           resolve(stdout);
         }
       });

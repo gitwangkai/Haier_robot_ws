@@ -12,7 +12,7 @@ from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import LaserScan
 
 # 服务类型
-from robot_mover.srv import Rotate, PauseRotation
+from robot_mover.srv import Rotate, PauseRotation, StopRotation
 
 class HumanFollower(Node):
     def __init__(self):
@@ -75,6 +75,13 @@ class HumanFollower(Node):
             PauseRotation,
             '/robot_mover/pause_rotation',
             self.pause_rotation_callback
+        )
+        
+        # --- 创建停止旋转服务 ---
+        self.stop_rotation_service = self.create_service(
+            StopRotation,
+            '/robot_mover/stop_rotation',
+            self.stop_rotation_callback
         )
 
         self.get_logger().info('Human Follower Node Started. Waiting for BlazePose...')
@@ -209,6 +216,32 @@ class HumanFollower(Node):
             else:
                 self.get_logger().info('Rotation resumed')
                 response.message = "Rotation resumed"
+        
+        response.success = True
+        return response
+    
+    def stop_rotation_callback(self, request, response):
+        """
+        停止旋转服务回调函数
+        """
+        with self.rotation_lock:
+            if not self.rotation_active:
+                response.success = False
+                response.message = "No rotation in progress"
+                return response
+            
+            # 停止旋转
+            self.rotation_active = False
+            self.rotation_paused = False
+            
+            # 发送停止命令
+            twist = Twist()
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
+            self.vel_publisher.publish(twist)
+            
+            self.get_logger().info('Rotation stopped')
+            response.message = "Rotation stopped"
         
         response.success = True
         return response
