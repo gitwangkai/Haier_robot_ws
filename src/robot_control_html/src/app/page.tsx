@@ -7,15 +7,26 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Play, Pause, Rotate3D, Hand, Music, Clock, AlertCircle, RotateCcw } from 'lucide-react';
+import { Play, Pause, Rotate3D, Hand, Music, Clock, AlertCircle, RotateCcw, RefreshCw, FileVideo, Activity } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 
 export default function RobotPerformancePage() {
   const [isPerforming, setIsPerforming] = useState(false);
-  const [selectedActions, setSelectedActions] = useState<string[]>([]); // 用于旋转和挥手
-  const [selectedReset, setSelectedReset] = useState<boolean>(false); // 用于恢复初始状态
-  const [selectedAudio, setSelectedAudio] = useState<string>('audio1'); // 默认选择音频1
+  const [selectedActions, setSelectedActions] = useState<string[]>([]);
+  const [selectedReset, setSelectedReset] = useState<boolean>(false);
+  const [selectedAudio, setSelectedAudio] = useState<string>('audio1');
   const [performanceTime, setPerformanceTime] = useState<number>(30);
   const [playingAudio, setPlayingAudio] = useState<string>('');
+
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [selectedPlaybackFile, setSelectedPlaybackFile] = useState<string>('');
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [playbackFiles, setPlaybackFiles] = useState<string[]>([]);
+  const [isPlayingBack, setIsPlayingBack] = useState(false);
+  const [playbackProgress, setPlaybackProgress] = useState({ current: 0, total: 0, progress: 0 });
+  const [armStatus, setArmStatus] = useState<{ right: any; left: any }>({ right: {}, left: {} });
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -31,18 +42,93 @@ export default function RobotPerformancePage() {
     { id: 'audio3', label: '音频3', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
   ];
 
+  useEffect(() => {
+    const socketInstance = io('http://localhost:8082', {
+      transports: ['websocket', 'polling'],
+    });
+
+    socketInstance.on('connect', () => {
+      console.log('Socket.IO 已连接');
+      setIsConnected(true);
+      socketInstance.emit('get_action_files');
+    });
+
+    socketInstance.on('disconnect', () => {
+      console.log('Socket.IO 已断开');
+      setIsConnected(false);
+    });
+
+    socketInstance.on('action_files_list', (data: { files: string[] }) => {
+      setPlaybackFiles(data.files);
+      if (data.files.length > 0 && !selectedPlaybackFile) {
+        setSelectedPlaybackFile(data.files[0]);
+      }
+    });
+
+    socketInstance.on('playback_started', (data: { filename: string; speed: number }) => {
+      console.log('播放开始:', data.filename);
+      setIsPlayingBack(true);
+      setPlaybackProgress({ current: 0, total: 0, progress: 0 });
+      setStatusMessage(`开始播放: ${data.filename}`);
+    });
+
+    socketInstance.on('playback_progress', (data: { current: number; total: number; progress: number }) => {
+      setPlaybackProgress({
+        current: data.current,
+        total: data.total,
+        progress: data.progress || (data.current / data.total) * 100
+      });
+    });
+
+    socketInstance.on('playback_stopped', () => {
+      console.log('播放已停止');
+      setIsPlayingBack(false);
+      setPlaybackProgress({ current: 0, total: 0, progress: 0 });
+      setStatusMessage('播放已停止');
+    });
+
+    socketInstance.on('playback_failed', (data: { error: string }) => {
+      console.error('播放失败:', data.error);
+      setIsPlayingBack(false);
+      setStatusMessage(`播放失败: ${data.error}`);
+      alert('播放失败: ' + data.error);
+    });
+
+    socketInstance.on('pose_reset_complete', (data: { success: boolean }) => {
+      console.log('位姿重置完成');
+      setStatusMessage('位姿已重置到初始位置');
+    });
+
+    socketInstance.on('arm_status', (data: { right: any; left: any }) => {
+      setArmStatus(data);
+      setStatusMessage('状态已刷新');
+    });
+
+    socketInstance.on('status_update', (data: { msg: string; level: string }) => {
+      setStatusMessage(data.msg);
+    });
+
+    setSocket(socketInstance);
+
+    return () => {
+      socketInstance.disconnect();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = new Audio('');
+      }
+    };
+  }, []);
+
   const handleActionToggle = (actionId: string, isExclusive: boolean) => {
     if (isExclusive) {
-      // 互斥选项：恢复初始状态
       if (selectedReset) {
         setSelectedReset(false);
       } else {
-        setSelectedActions([]); // 清空其他选项
-        setSelectedReset(true); // 选中恢复初始状态
+        setSelectedActions([]);
+        setSelectedReset(true);
       }
     } else {
-      // 多选选项：旋转和挥手
-      setSelectedReset(false); // 清除恢复初始状态
+      setSelectedReset(false);
       setSelectedActions(prev =>
         prev.includes(actionId)
           ? prev.filter(id => id !== actionId)
@@ -70,15 +156,6 @@ export default function RobotPerformancePage() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = new Audio('');
-      }
-    };
-  }, []);
-
   const handlePerformanceToggle = () => {
     if (!isPerforming) {
       if (selectedActions.length === 0 && !selectedReset) {
@@ -90,12 +167,9 @@ export default function RobotPerformancePage() {
         return;
       }
       
-      // 如果选择了旋转动作，调用旋转服务
       if (selectedActions.includes('rotate')) {
-        // 将分钟转换为秒
         const rotationTimeInSeconds = performanceTime * 60;
         
-        // 调用旋转服务
         fetch('/api/rotate', {
           method: 'POST',
           headers: {
@@ -113,7 +187,6 @@ export default function RobotPerformancePage() {
         });
       }
     } else {
-      // 停止表演，调用停止服务
       fetch('/api/stop', {
         method: 'POST',
         headers: {
@@ -141,6 +214,51 @@ export default function RobotPerformancePage() {
     return `${minutes}分钟`;
   };
 
+  const handleStartPlayback = () => {
+    if (!selectedPlaybackFile) {
+      alert('请先选择动作文件');
+      return;
+    }
+    if (!socket) {
+      alert('Socket.IO 未连接');
+      return;
+    }
+    
+    socket.emit('start_playback', {
+      filename: selectedPlaybackFile,
+      speed: playbackSpeed,
+    });
+  };
+
+  const handleStopPlayback = () => {
+    if (!socket) {
+      alert('Socket.IO 未连接');
+      return;
+    }
+    
+    socket.emit('stop_playback');
+  };
+
+  const handleResetPose = () => {
+    if (!socket) {
+      alert('Socket.IO 未连接');
+      return;
+    }
+    
+    if (confirm('确定要重置双臂位姿到初始位置吗？')) {
+      socket.emit('reset_pose');
+    }
+  };
+
+  const handleRefreshStatus = () => {
+    if (!socket) {
+      alert('Socket.IO 未连接');
+      return;
+    }
+    
+    socket.emit('get_status');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-blue-950 dark:to-indigo-950 p-4 md:p-8">
       <div className="mx-auto max-w-4xl">
@@ -154,24 +272,179 @@ export default function RobotPerformancePage() {
         <div className="mb-6 rounded-lg border-2 bg-white dark:bg-slate-900 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`h-3 w-3 rounded-full animate-pulse ${isPerforming ? 'bg-green-500' : 'bg-blue-500'}`} />
+              <div className={`h-3 w-3 rounded-full animate-pulse ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span className="text-lg font-semibold">
-                当前状态：
-                <span className={isPerforming ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}>
-                  {isPerforming ? '表演中' : '空闲中'}
+                Socket.IO 连接状态：
+                <span className={isConnected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                  {isConnected ? '已连接' : '未连接'}
                 </span>
               </span>
             </div>
-            {isPerforming && (
+            {statusMessage && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>预计时长：{formatTime(performanceTime)}</span>
+                <Activity className="h-4 w-4" />
+                <span>{statusMessage}</span>
               </div>
             )}
           </div>
         </div>
 
         <div className="grid gap-6">
+          <Card className="border-2 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileVideo className="h-5 w-5 text-blue-600" />
+                动作播放控制
+              </CardTitle>
+              <CardDescription>控制动作文件的播放和机械臂状态</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>选择动作文件</Label>
+                    <Select
+                      value={selectedPlaybackFile}
+                      onValueChange={setSelectedPlaybackFile}
+                      disabled={!isConnected || isPlayingBack}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择文件" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {playbackFiles.map((file) => (
+                          <SelectItem key={file} value={file}>
+                            {file}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>播放速度: {playbackSpeed}x</Label>
+                    <Slider
+                      value={[playbackSpeed]}
+                      onValueChange={(value) => setPlaybackSpeed(value[0])}
+                      min={0.1}
+                      max={3.0}
+                      step={0.1}
+                      disabled={!isConnected || isPlayingBack}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {isPlayingBack && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>播放进度</span>
+                      <span className="font-medium">
+                        {playbackProgress.current} / {playbackProgress.total}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                      <div
+                        className="h-full bg-blue-600 transition-all duration-300"
+                        style={{ width: `${playbackProgress.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <Button
+                    onClick={handleStartPlayback}
+                    disabled={!isConnected || !selectedPlaybackFile || isPlayingBack}
+                    className="w-full"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    开始播放
+                  </Button>
+                  
+                  <Button
+                    onClick={handleStopPlayback}
+                    disabled={!isConnected || !isPlayingBack}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Pause className="mr-2 h-4 w-4" />
+                    停止播放
+                  </Button>
+                  
+                  <Button
+                    onClick={handleResetPose}
+                    disabled={!isConnected || isPlayingBack}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    重置位姿
+                  </Button>
+                  
+                  <Button
+                    onClick={handleRefreshStatus}
+                    disabled={!isConnected}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    刷新状态
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-600" />
+                机械臂状态
+              </CardTitle>
+              <CardDescription>实时显示机械臂的运行状态</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <h3 className="font-semibold">右臂状态</h3>
+                  <div className="space-y-1 text-sm">
+                    {Object.keys(armStatus.right).length > 0 ? (
+                      Object.entries(armStatus.right).map(([servoId, info]: [string, any]) => (
+                        <div key={servoId} className="flex justify-between rounded bg-slate-100 dark:bg-slate-800 p-2">
+                          <span>舵机 {servoId}</span>
+                          <span className={info.pos !== null ? 'text-green-600' : 'text-red-600'}>
+                            {info.pos !== null ? `位置: ${info.pos}` : '离线'}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">暂无数据</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="font-semibold">左臂状态</h3>
+                  <div className="space-y-1 text-sm">
+                    {Object.keys(armStatus.left).length > 0 ? (
+                      Object.entries(armStatus.left).map(([servoId, info]: [string, any]) => (
+                        <div key={servoId} className="flex justify-between rounded bg-slate-100 dark:bg-slate-800 p-2">
+                          <span>舵机 {servoId}</span>
+                          <span className={info.pos !== null ? 'text-green-600' : 'text-red-600'}>
+                            {info.pos !== null ? `位置: ${info.pos}` : '离线'}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">暂无数据</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-2 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -196,7 +469,6 @@ export default function RobotPerformancePage() {
                       onClick={() => !isPerforming && handleActionToggle(action.id, action.isExclusive)}
                     >
                       {action.isExclusive ? (
-                        // 单选按钮样式（恢复初始状态）
                         <div
                           className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
                             isSelected
@@ -209,7 +481,6 @@ export default function RobotPerformancePage() {
                           )}
                         </div>
                       ) : (
-                        // 复选框样式（旋转和挥手）
                         <div
                           className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all ${
                             isSelected

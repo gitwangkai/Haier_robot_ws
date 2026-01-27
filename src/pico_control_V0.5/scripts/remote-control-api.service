@@ -1,0 +1,31 @@
+[Unit]
+Description=VR Remote Control API Service
+After=network.target
+Wants=network.target
+Before=vr-arm-control.service
+
+[Service]
+Type=simple
+User=aidlux
+WorkingDirectory=/home/aidlux/pico/pico_control_V0.5
+ExecStart=/usr/bin/python3 /home/aidlux/pico/pico_control_V0.5/remote_control_api.py
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+
+# 环境变量
+Environment=PYTHONPATH=/home/aidlux/pico/pico_control_V0.5
+Environment=PYTHONUNBUFFERED=1
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=remote-control-api
+
+[Install]
+WantedBy=multi-user.target
