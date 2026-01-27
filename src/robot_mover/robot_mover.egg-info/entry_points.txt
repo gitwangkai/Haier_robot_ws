@@ -1,0 +1,4 @@
+[console_scripts]
+follower = robot_mover.mover_node:main
+keyboard_teleop = robot_mover.keyboard_teleop:main
+test_rotation = robot_mover.test_rotation:main
