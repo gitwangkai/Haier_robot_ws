@@ -6,6 +6,8 @@
 !send.sh
 !robot.rviz
 !run_blazepose.sh
+!start_rotate_service.sh
+!run_project.sh
 !src/
 
 # 保留src目录下的所有内容

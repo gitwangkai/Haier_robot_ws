@@ -1,11 +1,15 @@
-from setuptools import find_packages, setup
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+from setuptools import setup
 
 package_name = 'robot_mover'
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=find_packages(exclude=['test']),
+    packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -24,8 +28,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'follower = robot_mover.follower_node:main',
+            'follower = robot_mover.mover_node:main',
             'keyboard_teleop = robot_mover.keyboard_teleop:main',
+            'test_rotation = robot_mover.test_rotation:main',
         ],
     },
 )

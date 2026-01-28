@@ -1,0 +1,5 @@
+# 停止旋转服务
+bool stop
+---
+bool success
+string message

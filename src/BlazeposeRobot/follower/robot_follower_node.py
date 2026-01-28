@@ -156,31 +156,37 @@ class RobotFollowerNode(Node):
         failure = self.check_failure(pose_results)
 
         # ---------------- 状态判定 ----------------
+        # 紧急状态（摔倒检测）
         if failure:
             self.state = FollowState.EMERGENCY
-
+        
+        # 目标丢失处理
         elif target_bbox is None:
             self.lost_counter += 1
-            self.state = (
-                FollowState.STOP
-                if self.lost_counter >= self.lost_threshold
-                else FollowState.LOST
-            )
-
+            if self.lost_counter >= self.lost_threshold:
+                self.state = FollowState.STOP
+                self.get_logger().info("Target lost for too long, stopping robot")
+            else:
+                self.state = FollowState.LOST
+        
+        # 目标距离过近处理
         else:
-            self.lost_counter = 0
+            self.lost_counter = 0  # 重置丢失计数
             bbox_h_ratio = (target_bbox[3] - target_bbox[1]) / frame_h
-
+            
             if bbox_h_ratio > self.min_follow_dist_ratio:
                 self.state = FollowState.STOP
+                self.get_logger().info(f"Target too close (height ratio: {bbox_h_ratio:.2f}), stopping robot")
             else:
                 self.state = FollowState.FOLLOW
 
         # ---------------- 状态执行 ----------------
         if self.state == FollowState.FOLLOW:
             self.follow_with_pid(target_bbox, frame_w, frame_h, dt)
-        else:
+        elif self.state in [FollowState.LOST, FollowState.STOP, FollowState.EMERGENCY]:
             self.stop()
+            if self.state == FollowState.EMERGENCY:
+                self.get_logger().info("Emergency stop: target detected as fallen")
 
         self.get_logger().info(f"[Follower] State: {self.state.name}")
         return failure
@@ -231,7 +237,7 @@ class RobotFollowerNode(Node):
 
 
     # =====================================================
-    # 目标选择：最靠近画面中心的人
+    # 目标选择：综合考虑中心距离和目标大小
     # =====================================================
     def select_target(self, bboxes, classes, frame_w):
         if bboxes is None or classes is None:
@@ -241,14 +247,23 @@ class RobotFollowerNode(Node):
         for i, cls in enumerate(classes):
             if cls == 0:  # person
                 bx, by, bx2, by2 = bboxes[i]
+                # 计算目标中心与画面中心的距离
                 cx = (bx + bx2) / 2
-                dist = abs(cx - frame_w / 2)
-                candidates.append((dist, bboxes[i]))
+                center_dist = abs(cx - frame_w / 2)
+                
+                # 计算目标大小（面积）
+                bbox_area = (bx2 - bx) * (by2 - by)
+                
+                # 综合评分：中心距离越小，目标越大，评分越高
+                # 权重可根据实际情况调整
+                score = (frame_w - center_dist) * bbox_area
+                candidates.append((score, bboxes[i]))
 
         if not candidates:
             return None
 
-        candidates.sort(key=lambda x: x[0])
+        # 选择评分最高的目标
+        candidates.sort(key=lambda x: x[0], reverse=True)
         return candidates[0][1]
 
 

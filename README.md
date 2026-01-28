@@ -1,78 +1,205 @@
-# BlazePoseRobot
+# Haier_robot_ws 项目说明
 
-简体中文说明（README）
+## 项目概述
 
-## 项目简介
-- BlazePoseRobot 是一个基于 YOLO (yolov8n.pt) 与 BlazePose 姿态估计的机器人视觉与跟随演示代码。项目集成了视觉检测、姿态估计、状态机跟随逻辑与机器人动作控制（通过 `motion` 模块），并包含用于控制电机的示例固件文件（`.ino`）。
+本项目是一个集成了视觉检测、姿态估计和机器人控制的综合系统，通过Web界面实现对机器人的实时控制和监控。系统包含机器人跟随功能、机械臂控制、表演动作选择等核心功能。
 
-## 主要功能
-- 实时摄像头采集并进行目标检测（YOLO）和姿态估计（BlazePose）。
-- 根据检测与姿态结果由 `follower` 模块决定跟随/纠偏/失败检测并驱动 `motion` 模块。
-- 可视化调试窗口显示相机画面、检测框、姿态关键点、运行状态与 FPS；同时将膝关节角度绘制为时间序列曲线（Matplotlib）。
+## 核心文件功能说明
 
-## 代码结构 & 每部分作用
-- `main.py`：主入口，启动 ROS2 节点（`BlazePoseNode`）、摄像头循环、异步视觉线程 `AsyncVision`，以及显示与调试逻辑。
-- `requirements.txt`：Python 运行所需第三方包清单（请通过 `pip install -r requirements.txt` 安装）。
-- `yolov8n.pt`：YOLOv8 的轻量检测模型权重，用于目标检测。
-- `vision/`：视觉相关代码
-  - `async_vision.py`：异步摄像头/推理线程管理，接收帧并输出检测与姿态结果。
-  - `yolo_detector.py`：封装 YOLO 检测逻辑（加载 `yolov8n.pt`）。
-  - `pose_estimator.py`：BlazePose 或其他姿态估计器的封装与绘制辅助（关键点绘制）。
-  - `vision_manager.py`：可选的高层管理器，用于协调多个视觉子模块（若存在）。
-- `follower/`：跟随与状态机逻辑
-  - `robot_follower.py`：从视觉结果计算是否“失败”或需移动，并调用 `motion` 接口。
-  - `target_state_machine.py`：实现跟随/搜索/失稳等状态机逻辑。
-- `motion/`：机器人动作抽象与控制
-  - `robot_motion.py`：机器人运动控制接口（发布命令到电机或仿真）。
-  - `mover_node.py`：若启用，可作为独立 ROS 节点来接收运动命令。
-- `utils/geometry.py`：几何计算辅助函数（如 `calculate_angle`，用于膝角计算）。
-- `runs/`：检测/推理产生的预测与运行记录目录。
-- `.ino` 文件：`new_working_controller.ino` 与 `Working_Motor_Control.ino`，示例 Arduino 固件用于电机控制板（作为参考/部署固件）。
-- `function.py`, `classes.txt`, `CONTRIBUTIONS.md`, `LICENSE`：项目文档/贡献/许可等辅助文件。
+### 主程序文件
 
-## 依赖 & 准备
-1. 安装系统依赖（确保有 ROS2 与 OpenCV，可选 GPU 支持）
-2. 在项目目录下安装 Python 依赖：
+- **run_project.sh**：项目启动脚本，整合了所有服务的启动
+- **run.sh**：项目启动脚本
+- **send.sh**：数据发送脚本
+- **robot.rviz**：RViz配置文件，用于机器人可视化
+- **run_blazepose.sh**：Blazepose姿态估计启动脚本
 
-```bash
-python3 -m pip install -r requirements.txt
+### src目录下的核心文件
+
+#### BlazeposeRobot目录
+- **main.py**：项目主程序，整合视觉处理、机器人控制和Web界面
+
+#### BlazeposeRobot/vision目录
+- **__init__.py**：视觉模块导出文件，定义公共接口
+- **async_vision.py**：异步视觉处理类，在独立线程中执行目标检测和姿态估计
+- **config.py**：视觉模块配置文件，包含模型参数设置
+- **pose_estimator.py**：基于MediaPipe的人体姿态估计实现
+- **vision_manager.py**：同步视觉处理类，提供目标检测和姿态估计功能
+- **vision_processor.py**：视觉处理基类，定义共享功能和接口
+- **yolo_detector.py**：基于YOLOv8的目标检测实现
+
+#### BlazeposeRobot/follower目录
+- **__init__.py**：跟随模块导出文件，定义公共接口
+- **robot_follower_node.py**：机器人跟随节点，实现完整的人体跟随控制逻辑
+  - 基于视觉检测结果实现目标选择和跟随
+  - 支持PID控制算法，实现平滑的线速度和角速度控制
+  - 集成速度斜坡功能，限制加速度，保护机器人底盘
+  - 实现完整的状态机管理（IDLE/FOLLOW/LOST/STOP/EMERGENCY）
+  - 支持摔倒检测和紧急停止功能
+  - 通过ROS2 /cmd_vel接口控制机器人运动
+
+#### pico_control_V0.5目录
+- **web_control.py**：后端服务主程序，基于Flask和Socket.IO实现
+  - 提供机械臂控制接口
+  - 支持表演动作控制
+  - 实现Socket.IO实时通信
+  - 提供状态监控和反馈
+
+#### robot_control_html目录
+- **src/app/page.tsx**：前端页面主文件，基于React/Next.js实现
+  - 机械臂控制界面
+  - 表演动作选择（仅保留旋转动作）
+  - Socket.IO连接状态显示
+  - 实时状态监控
+
+#### robot_mover目录
+- **robot_mover/mover_node.py**：机器人移动节点，提供旋转服务
+  - 服务地址：/robot_mover/rotate
+  - 服务地址：/robot_mover/pause_rotation
+
+## 项目结构
+
+```
+Haier_robot_ws/
+├── run_project.sh             # 整合启动脚本
+├── run.sh                     # 项目启动脚本
+├── send.sh                    # 数据发送脚本
+├── robot.rviz                 # RViz配置文件
+├── run_blazepose.sh           # Blazepose启动脚本
+└── src/
+    ├── BlazeposeRobot/        # 视觉和跟随模块
+    │   ├── main.py            # 项目主程序
+    │   ├── vision/            # 视觉处理模块
+    │   └── follower/          # 机器人跟随控制模块
+    ├── pico_control_V0.5/      # 后端服务模块
+    │   └── web_control.py     # 后端服务主程序
+    ├── robot_control_html/     # 前端Web界面
+    │   └── src/app/page.tsx    # 前端页面主文件
+    └── robot_mover/            # 机器人移动模块
+        └── robot_mover/mover_node.py  # 移动节点实现
 ```
 
-3. 若在 ROS2 环境中运行，确保已经 source ROS2 与工作区环境，例如：
+## 启动方式
+
+### 使用整合启动脚本（推荐）
 
 ```bash
-source /opt/ros/<your-ros2-distro>/setup.bash
-source ~/Haier_robot_ws/install/local_setup.bash
+bash /home/aidlux/Haier_robot_ws/run_project.sh
 ```
 
-## 运行
-1. 直接运行（非 launch）：
+此脚本会自动：
+1. 启动robot_mover节点（带自动编译检查）
+2. 启动后端web_control.py服务
+3. 安装前端依赖（使用pnpm）
+4. 启动前端服务
 
-```bash
-python3 main.py
+### 手动启动各服务
+
+1. 启动robot_mover节点：
+   ```bash
+   cd /home/aidlux/Haier_robot_ws
+   source install/setup.bash
+   python3 src/robot_mover/robot_mover/mover_node.py
+   ```
+
+2. 启动后端服务：
+   ```bash
+   cd /home/aidlux/Haier_robot_ws/src/pico_control_V0.5
+   python3 web_control.py
+   ```
+
+3. 启动前端服务：
+   ```bash
+   cd /home/aidlux/Haier_robot_ws/src/robot_control_html
+   pnpm install
+   pnpm run dev
+   ```
+
+## Web界面
+
+### 前端界面（控制界面）
+
+项目启动后，可通过以下地址访问前端控制界面：
+```
+http://<设备IP>:3000
 ```
 
-2. 注意事项：
-- `main.py` 中使用 `cv2.VideoCapture(2)`（摄像头索引 `2`），根据你的摄像头实际索引修改为 `0` 或其他。
-- 如果使用 ROS2 集成或要把 `motion` 发布到 ROS topic，请先确保 ROS 节点环境已正确 source 并且相关 topic 已就绪。
+功能特点：
+- 机械臂控制
+- 表演动作选择（仅旋转动作）
+- Socket.IO连接状态显示
+- 实时状态监控
 
-## 调试与可视化
-- 程序会弹出 `BlazePose Debug View` 窗口，显示检测框、关键点与状态文本；按 `q` 退出。
-- 运行结束后会展示 Matplotlib 的膝关节角度随时间曲线（`plt.show()`）。若希望非阻塞或在远程机器上查看，建议改为保存数据或使用 web 界面展示。
+### 后端界面
 
-## 常见问题
-- 若没有检测到目标：确认 `yolov8n.pt` 文件存在且 `yolo_detector` 能正确加载模型。
-- 如果帧率低：检查模型是否在 CPU 上推理，考虑使用 GPU 或降低输入分辨率。
+后端服务启动后，可通过以下地址访问：
+```
+http://<设备IP>:8082
+```
 
-## 下一步 / Todo（简要）
-- 在仓库根目录添加 `launch` 文件以便 ROS2 启动（把 `main.py` 或 `mover_node.py` 集成进 launch）。
-- 为 `vision` 模块补充 mock 测试数据与单元测试。
-- 将 Matplotlib 实时绘图改为非阻塞或使用 WebSocket/Flask 展示以便远程查看。
-- 编写 README 中未覆盖的硬件接线与电机固件部署步骤。
-- 性能优化：模型量化/使用 ONNX + TensorRT 或改用更轻量推理后端。
+## 核心接口
 
-## 贡献
-- 欢迎提交 PR 或在 `CONTRIBUTIONS.md` 中描述贡献流程。
+### Socket.IO接口
 
----
-文件位置：`/home/aidlux/Haier_robot_ws/src/BlazeposeRobot/README.md`
+- **start_playback**：开始播放动作文件
+  ```javascript
+  socket.emit('start_playback', {
+      filename: 'record_20260127_123456.json',
+      speed: 1.0
+  });
+  ```
+
+- **stop_playback**：停止播放
+  ```javascript
+  socket.emit('stop_playback');
+  ```
+
+- **reset_pose**：重置位姿
+  ```javascript
+  socket.emit('reset_pose');
+  ```
+
+- **get_status**：刷新状态
+  ```javascript
+  socket.emit('get_status');
+  ```
+
+### ROS2服务接口
+
+- **/robot_mover/rotate**：机器人旋转服务
+- **/robot_mover/pause_rotation**：暂停旋转服务
+
+## 注意事项
+
+- 确保摄像头已正确连接并配置
+- 首次运行可能需要下载YOLOv8模型文件
+- 调整config.py中的参数可以优化检测和姿态估计效果
+- 确保网络连接稳定，避免Socket.IO连接中断
+- 首次启动前端服务时，会自动安装依赖包，可能需要较长时间
+- 如果遇到pnpm命令未找到的问题，请先安装pnpm：`npm install -g pnpm`
+
+## 故障排除
+
+1. **Socket.IO连接失败**：
+   - 检查后端服务是否正在运行
+   - 检查网络连接是否正常
+   - 检查防火墙设置是否允许端口访问
+
+2. **机械臂无响应**：
+   - 检查机械臂是否正确连接
+   - 检查robot_mover节点是否正在运行
+   - 检查后端服务是否正常启动
+
+3. **前端服务启动失败**：
+   - 检查Node.js是否已安装
+   - 检查pnpm是否已安装
+   - 检查网络连接是否正常，确保依赖包能够下载
+
+4. **Git推送超时**：
+   - 执行以下命令优化Git网络配置：
+     ```bash
+     git config --global http.postBuffer 524288000
+     git config --global http.lowSpeedLimit 0
+     git config --global http.lowSpeedTime 999999
+     git config --global http.version HTTP/1.1
+     ```

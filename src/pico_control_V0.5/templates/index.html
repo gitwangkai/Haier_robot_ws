@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双臂 Web 控制中心</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 双臂 Web 控制中心</h1>
+            <div id="connection-status" class="status-disconnected">未连接</div>
+        </header>
+
+        <div class="main-content">
+            <!-- 左侧控制面板 -->
+            <div class="control-panel">
+                <h2>控制面板</h2>
+                
+                <div class="card">
+                    <h3>系统控制</h3>
+                    <button id="reset-pose-btn" class="button-primary">⚙️ 重置位姿</button>
+                    <button id="refresh-status-btn">🔄 刷新状态</button>
+                </div>
+
+                <div class="card">
+                    <h3>录制动作</h3>
+                    <div class="form-group">
+                        <label for="record-arms">选择手臂:</label>
+                        <select id="record-arms">
+                            <option value="both" selected>双臂</option>
+                            <option value="right">仅右臂</option>
+                            <option value="left">仅左臂</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="record-filename">文件名:</label>
+                        <input type="text" id="record-filename" placeholder="可选, 如: wave.json">
+                    </div>
+                    <div class="button-group">
+                        <button id="start-record-btn">开始录制</button>
+                        <button id="stop-record-btn" disabled>停止录制</button>
+                    </div>
+                    <div id="recording-info" class="progress-info"></div>
+                </div>
+
+                <div class="card">
+                    <h3>播放动作</h3>
+                    <div class="form-group">
+                        <label for="play-filename-select">选择动作文件:</label>
+                        <select id="play-filename-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="playback-speed">播放速度:</label>
+                        <input type="number" id="playback-speed" value="1.0" step="0.1" min="0.1">
+                    </div>
+                    <div class="button-group">
+                        <button id="start-playback-btn">开始播放</button>
+                        <button id="stop-playback-btn" disabled>停止播放</button>
+                    </div>
+                    <div id="playback-progress" class="progress-bar-container">
+                        <div class="progress-bar"></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>电源管理</h3>
+                    <p>对指定舵机或整臂进行上力/卸力。</p>
+                    <div class="form-group">
+                        <label for="power-target">选择目标:</label>
+                        <select id="power-target">
+                            <option value="left_all" selected>左臂 (全部)</option>
+                            <option value="right_all">右臂 (全部)</option>
+                            <option value="both_all">双臂 (全部)</option>
+                            <optgroup label="左臂单舵机">
+                                <option value="left_1">左臂 #1</option>
+                                <option value="left_2">左臂 #2</option>
+                                <option value="left_3">左臂 #3</option>
+                                <option value="left_4">左臂 #4</option>
+                                <option value="left_5">左臂 #5</option>
+                                <option value="left_6">左臂 #6</option>
+                                <option value="left_7">左臂 #7 (夹爪)</option>
+                            </optgroup>
+                            <optgroup label="右臂单舵机">
+                                <option value="right_1">右臂 #1</option>
+                                <option value="right_2">右臂 #2</option>
+                                <option value="right_3">右臂 #3</option>
+                                <option value="right_4">右臂 #4</option>
+                                <option value="right_5">右臂 #5</option>
+                                <option value="right_6">右臂 #6</option>
+                                <option value="right_7">右臂 #7 (夹爪)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button id="power-load-btn">⚡ 上力</button>
+                        <button id="power-unload-btn">🔓 卸力</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>镜像同步</h3>
+                    <p>一个手臂的动作实时复制到另一个手臂。</p>
+                    <div class="form-group">
+                        <label for="sync-mode">选择模式:</label>
+                        <select id="sync-mode">
+                            <option value="left_to_right" selected>左臂 → 右臂</option>
+                            <option value="right_to_left">右臂 → 左臂</option>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button id="start-sync-btn">开始同步</button>
+                        <button id="stop-sync-btn" disabled>停止同步</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>数据滤波</h3>
+                    <p>对选中的动作文件进行滤波处理，以减少抖动。</p>
+                    <div class="form-group">
+                        <label for="filter-file-select">选择文件:</label>
+                        <select id="filter-file-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="smoothing-factor">平滑因子 (0-1):</label>
+                        <input type="number" id="smoothing-factor" value="0.3" step="0.05" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="deadzone-threshold">死区阈值 (0-10):</label>
+                        <input type="number" id="deadzone-threshold" value="2" step="1" min="0" max="10">
+                    </div>
+                    <button id="filter-file-btn">应用滤波</button>
+                </div>
+            </div>
+
+            <!-- 中间状态与精调面板 -->
+            <div class="status-and-tune-panel">
+                <div class="card">
+                    <h3>机械臂状态</h3>
+                    <div class="arm-status-container">
+                        <div id="right-arm-status" class="arm-status">
+                            <h4>右臂</h4>
+                            <ul id="right-arm-list"></ul>
+                        </div>
+                        <div id="left-arm-status" class="arm-status">
+                            <h4>左臂</h4>
+                            <ul id="left-arm-list"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>舵机精调</h3>
+                    <div class="servo-fine-tune-container">
+                        <div class="arm-sliders">
+                            <h4>左臂</h4>
+                            <div id="left-arm-sliders"></div>
+                        </div>
+                        <div class="arm-sliders">
+                            <h4>右臂</h4>
+                            <div id="right-arm-sliders"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="file-list-container card">
+                    <h3>动作文件管理</h3>
+                    <div class="file-actions">
+                        <button id="refresh-files-btn" title="刷新列表">🔄</button>
+                    </div>
+                    <ul id="action-files-list">
+                        <!-- 文件项将由JS动态生成 -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 右侧文件和日志 -->
+            <div class="right-column">
+                <div class="status-log card">
+                    <h3>状态日志</h3>
+                    <div id="log-container"></div>
+                </div>
+
+                <div id="context-menu" class="context-menu">
+                    <ul>
+                        <li id="menu-rename">✏️ 重命名</li>
+                        <li id="menu-delete">🗑️ 删除</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

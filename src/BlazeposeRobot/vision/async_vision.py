@@ -1,12 +1,11 @@
+# vision/async_vision.py
 import threading
 import time
-from vision.yolo_detector import YoloDetector
-from vision.pose_estimator import PoseEstimator
+from .vision_processor import VisionProcessor
 
-class AsyncVision:
+class AsyncVision(VisionProcessor):
     def __init__(self):
-        self.yolo = YoloDetector()
-        self.pose = PoseEstimator()
+        super().__init__()
         self.latest_frame = None
         self.latest_bboxes = []
         self.latest_classes = []
@@ -37,10 +36,7 @@ class AsyncVision:
             frame = None
             with self.lock:
                 frame = self.latest_frame.copy()
-            # YOLO 
-            bboxes, classes = self.yolo.detect(frame)
-            # Pose 
-            pose_results = self.pose.process(frame)
+            bboxes, classes, pose_results = self.process_frame(frame)
             with self.lock:
                 self.latest_bboxes = bboxes
                 self.latest_classes = classes

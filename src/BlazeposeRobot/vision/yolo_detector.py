@@ -1,12 +1,21 @@
+# vision/yolo_detector.py
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from .config import CONFIG
 
 class YoloDetector:
-    def __init__(self, model_path="yolov8n.pt"):
-        self.model = YOLO(model_path)
+    def __init__(self):
+        self.model_path = CONFIG["yolo"]["model_path"]
+        self.confidence_threshold = CONFIG["yolo"]["confidence_threshold"]
+        self.model = None  # 懒加载模型
+
+    def _load_model(self):
+        if self.model is None:
+            self.model = YOLO(self.model_path)
 
     def detect(self, frame):
+        self._load_model()
         results = self.model(frame)[0]
         bboxes = np.array(results.boxes.xyxy.cpu(), dtype=int)
         classes = np.array(results.boxes.cls.cpu(), dtype=int)

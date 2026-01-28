@@ -1,0 +1,4 @@
+bool pause  # true to pause, false to resume
+---
+bool success       # 执行结果
+string message     # 状态消息

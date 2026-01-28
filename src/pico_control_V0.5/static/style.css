@@ -1,0 +1,410 @@
+/* General Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+header {
+    background-color: #4a90e2;
+    color: white;
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+#connection-status {
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.status-connected {
+    background-color: #34c759;
+    color: white;
+}
+
+.status-disconnected {
+    background-color: #ff3b30;
+    color: white;
+}
+
+.main-content {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+
+/* Layout Columns */
+.control-panel {
+    flex: 1;
+    min-width: 320px;
+}
+
+.status-and-tune-panel {
+    flex: 1.5;
+    min-width: 400px;
+}
+
+.right-column {
+    flex: 1;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Control Panel */
+.control-panel h2, .status-log h2 {
+    margin-top: 0;
+    color: #4a90e2;
+    border-bottom: 2px solid #4a90e2;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: #f9f9f9;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+/* Arm Status */
+.arm-status-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.arm-status {
+    flex: 1;
+}
+
+.arm-status h4 {
+    margin-bottom: 10px;
+}
+
+.arm-status ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    max-height: 400px; /* 增加高度 */
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.arm-status ul li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+}
+.arm-status ul li:last-child {
+    border-bottom: none;
+}
+
+.arm-status ul li .servo-id {
+    font-weight: bold;
+    width: 50px;
+}
+
+.arm-status ul li .servo-pos {
+    width: 120px;
+}
+
+.arm-status ul li .servo-details {
+    font-size: 0.85em;
+    color: #666;
+    width: 100%;
+    text-align: right;
+}
+
+/* Servo Fine-Tuning Sliders */
+.servo-fine-tune-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.arm-sliders {
+    flex: 1;
+}
+
+.arm-sliders h4 {
+    margin-bottom: 10px;
+}
+
+.slider-group {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.slider-group label {
+    font-size: 0.9em;
+    width: 60px; /* Fixed width for alignment */
+    flex-shrink: 0;
+}
+
+.slider-group input[type="range"] {
+    flex-grow: 1;
+    width: 100%;
+    margin: 0 5px;
+}
+
+.slider-group .slider-value {
+    font-size: 0.9em;
+    font-weight: bold;
+    width: 40px; /* Fixed width for alignment */
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.right-column {
+    padding-left: 0;
+}
+
+.status-log, .file-list-container {
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+/* Forms and Buttons */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"], input[type="number"], select {
+    width: calc(100% - 20px);
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+select {
+     width: 100%;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #357abd;
+}
+
+button:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+}
+
+.small-btn {
+    padding: 5px 10px;
+    font-size: 0.9em;
+}
+
+/* Progress Info & Bar */
+.progress-info {
+    margin-top: 15px;
+    font-weight: bold;
+    color: #34c759;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    margin-top: 15px;
+    height: 20px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: #4a90e2;
+    text-align: center;
+    line-height: 20px;
+    color: white;
+    transition: width 0.1s linear;
+}
+
+/* Status Log & Right Column adjustments */
+.status-log {
+    padding-left: 0;
+    flex-grow: 1; /* Allow log to take available space */
+    display: flex;
+    flex-direction: column;
+}
+
+#log-container {
+    height: auto; /* Remove fixed height */
+    flex-grow: 1; /* Allow it to expand */
+    background: #282c34;
+    color: #abb2bf;
+    padding: 15px;
+    border-radius: 6px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+}
+
+.log-entry {
+    padding: 2px 0;
+    border-bottom: 1px solid #3a3f4b;
+}
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry .timestamp {
+    color: #61afef;
+    margin-right: 10px;
+}
+
+.log-entry.level-error {
+    color: #e06c75;
+    font-weight: bold;
+}
+
+.log-entry.level-warning {
+    color: #e5c07b;
+}
+
+.log-entry.level-info {
+    color: #98c379;
+}
+
+/* File List and Context Menu Styles */
+.file-list-container {
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.file-list-container h3 {
+    margin-top: 0;
+}
+
+.file-actions {
+    margin-bottom: 10px;
+}
+
+#action-files-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#action-files-list li {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: #333;
+}
+
+#action-files-list li:last-child {
+    border-bottom: none;
+}
+
+#action-files-list li:hover, #action-files-list li.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+#action-files-list li.context-menu-active {
+    background-color: #5a009d; /* 右键点击时的特殊高亮颜色 */
+    color: white;
+}
+
+#action-files-list li.selected {
+    font-weight: bold;
+}
+
+.context-menu {
+    position: absolute;
+    display: none;
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    z-index: 1000;
+    padding: 5px 0;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu ul li {
+    padding: 8px 15px;
+    cursor: pointer;
+}
+
+.context-menu ul li:hover {
+    background-color: #007bff;
+}
+
+.log-container {
+    grid-column: 1 / -1;
+    background-color: #1a1a1a;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 20px;
+}

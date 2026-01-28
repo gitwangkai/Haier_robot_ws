@@ -13,7 +13,6 @@ import numpy as np
 from follower.robot_follower_node import RobotFollowerNode
 from vision.async_vision import AsyncVision
 from utils.geometry import calculate_angle
-from vision.pose_estimator import PoseEstimator
 
 # Flask Web服务器配置
 app = Flask(__name__)
@@ -130,19 +129,9 @@ def main():
             )
 
             # ------------------ 可视化 ------------------
-            if bboxes is not None:
-                for (x1, y1, x2, y2) in bboxes:
-                    cv2.rectangle(
-                        frame,
-                        (x1, y1),
-                        (x2, y2),
-                        (0, 0, 255),
-                        2
-                    )
+            vision.draw_results(frame, bboxes, classes, pose_results)
 
             if pose_results and pose_results.pose_landmarks:
-                PoseEstimator.draw(frame, pose_results)
-
                 lm = pose_results.pose_landmarks.landmark
                 lh, lk, la = lm[23], lm[25], lm[27]
                 angle_knee = calculate_angle(
@@ -201,6 +190,7 @@ def main():
         rclpy.shutdown()
         plt.show()
 
+# 测试新分支并提交内容
 
 if __name__ == "__main__":
     main()
