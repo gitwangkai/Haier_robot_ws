@@ -13,7 +13,6 @@ import { io, Socket } from 'socket.io-client';
 export default function RobotPerformancePage() {
   const [isPerforming, setIsPerforming] = useState(false);
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
-  const [selectedReset, setSelectedReset] = useState<boolean>(false);
   const [selectedAudio, setSelectedAudio] = useState<string>('audio1');
   const [performanceTime, setPerformanceTime] = useState<number>(30);
   const [playingAudio, setPlayingAudio] = useState<string>('');
@@ -32,8 +31,6 @@ export default function RobotPerformancePage() {
 
   const actionOptions = [
     { id: 'rotate', label: '旋转', icon: Rotate3D, isExclusive: false },
-    { id: 'wave', label: '挥手', icon: Hand, isExclusive: false },
-    { id: 'reset', label: '恢复初始状态', icon: RotateCcw, isExclusive: true },
   ];
 
   const audioOptions = [
@@ -45,6 +42,13 @@ export default function RobotPerformancePage() {
   useEffect(() => {
     const socketInstance = io('http://localhost:8082', {
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      pingInterval: 30000,
+      pingTimeout: 60000,
     });
 
     socketInstance.on('connect', () => {
@@ -119,22 +123,12 @@ export default function RobotPerformancePage() {
     };
   }, []);
 
-  const handleActionToggle = (actionId: string, isExclusive: boolean) => {
-    if (isExclusive) {
-      if (selectedReset) {
-        setSelectedReset(false);
-      } else {
-        setSelectedActions([]);
-        setSelectedReset(true);
-      }
-    } else {
-      setSelectedReset(false);
-      setSelectedActions(prev =>
-        prev.includes(actionId)
-          ? prev.filter(id => id !== actionId)
-          : [...prev, actionId]
-      );
-    }
+  const handleActionToggle = (actionId: string) => {
+    setSelectedActions(prev =>
+      prev.includes(actionId)
+        ? prev.filter(id => id !== actionId)
+        : [...prev, actionId]
+    );
   };
 
   const handleAudioPlay = (audioId: string, audioUrl: string) => {
@@ -158,7 +152,7 @@ export default function RobotPerformancePage() {
 
   const handlePerformanceToggle = () => {
     if (!isPerforming) {
-      if (selectedActions.length === 0 && !selectedReset) {
+      if (selectedActions.length === 0) {
         alert('请至少选择一个表演动作');
         return;
       }
@@ -399,55 +393,6 @@ export default function RobotPerformancePage() {
           <Card className="border-2 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-purple-600" />
-                机械臂状态
-              </CardTitle>
-              <CardDescription>实时显示机械臂的运行状态</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">右臂状态</h3>
-                  <div className="space-y-1 text-sm">
-                    {Object.keys(armStatus.right).length > 0 ? (
-                      Object.entries(armStatus.right).map(([servoId, info]: [string, any]) => (
-                        <div key={servoId} className="flex justify-between rounded bg-slate-100 dark:bg-slate-800 p-2">
-                          <span>舵机 {servoId}</span>
-                          <span className={info.pos !== null ? 'text-green-600' : 'text-red-600'}>
-                            {info.pos !== null ? `位置: ${info.pos}` : '离线'}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">暂无数据</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="font-semibold">左臂状态</h3>
-                  <div className="space-y-1 text-sm">
-                    {Object.keys(armStatus.left).length > 0 ? (
-                      Object.entries(armStatus.left).map(([servoId, info]: [string, any]) => (
-                        <div key={servoId} className="flex justify-between rounded bg-slate-100 dark:bg-slate-800 p-2">
-                          <span>舵机 {servoId}</span>
-                          <span className={info.pos !== null ? 'text-green-600' : 'text-red-600'}>
-                            {info.pos !== null ? `位置: ${info.pos}` : '离线'}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">暂无数据</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
                 <Rotate3D className="h-5 w-5 text-blue-600" />
                 表演动作选择
               </CardTitle>
@@ -457,7 +402,7 @@ export default function RobotPerformancePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {actionOptions.map((action) => {
                   const Icon = action.icon;
-                  const isSelected = action.isExclusive ? selectedReset : selectedActions.includes(action.id);
+                  const isSelected = selectedActions.includes(action.id);
                   return (
                     <div
                       key={action.id}
@@ -466,21 +411,8 @@ export default function RobotPerformancePage() {
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
                           : 'border-gray-200 dark:border-slate-800'
                       } ${isPerforming ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-300 dark:hover:border-slate-700'}`}
-                      onClick={() => !isPerforming && handleActionToggle(action.id, action.isExclusive)}
+                      onClick={() => !isPerforming && handleActionToggle(action.id)}
                     >
-                      {action.isExclusive ? (
-                        <div
-                          className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
-                            isSelected
-                              ? 'border-blue-500 bg-blue-500'
-                              : 'border-gray-300 dark:border-slate-600'
-                          }`}
-                        >
-                          {isSelected && (
-                            <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                          )}
-                        </div>
-                      ) : (
                         <div
                           className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all ${
                             isSelected
@@ -502,7 +434,6 @@ export default function RobotPerformancePage() {
                             </svg>
                           )}
                         </div>
-                      )}
                       <div className="flex-1">
                         <div className="flex items-center gap-2 text-base font-medium">
                           <Icon className="h-4 w-4" />
@@ -514,7 +445,7 @@ export default function RobotPerformancePage() {
                 })}
               </div>
               <div className="mt-4 flex items-center justify-between">
-                {selectedActions.length === 0 && !selectedReset && !isPerforming && (
+                {selectedActions.length === 0 && !isPerforming && (
                   <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
                     <AlertCircle className="h-4 w-4" />
                     <span>请至少选择一个动作</span>
@@ -636,7 +567,7 @@ export default function RobotPerformancePage() {
             <Button
               size="lg"
               onClick={handlePerformanceToggle}
-              disabled={!isPerforming && (selectedActions.length === 0 && !selectedReset)}
+              disabled={!isPerforming && selectedActions.length === 0}
               className={`h-14 px-12 text-lg font-semibold transition-all ${
                 isPerforming
                   ? 'bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/30'
