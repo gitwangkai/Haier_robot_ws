@@ -23,7 +23,7 @@ from filter_tool import combined_ema_deadzone_filter
 # --- 全局配置 ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key_for_robot_arm_!@#'
-socketio = SocketIO(app, async_mode='eventlet')
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins='*')
 
 # --- 硬件和路径常量 ---
 RIGHT_ARM_PORT = "/dev/arm_right"
