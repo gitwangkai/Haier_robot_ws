@@ -40,7 +40,9 @@ export default function RobotPerformancePage() {
   ];
 
   useEffect(() => {
-    const socketInstance = io('http://localhost:8082', {
+    // Get the server's hostname from the current URL
+    const serverHostname = window.location.hostname;
+    const socketInstance = io(`http://${serverHostname}:8082`, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
