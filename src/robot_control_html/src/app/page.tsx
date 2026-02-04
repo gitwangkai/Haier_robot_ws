@@ -16,6 +16,7 @@ export default function RobotPerformancePage() {
   const [selectedAudio, setSelectedAudio] = useState<string>('audio1');
   const [performanceTime, setPerformanceTime] = useState<number>(30);
   const [playingAudio, setPlayingAudio] = useState<string>('');
+  const [rotationDirection, setRotationDirection] = useState<number>(1.0); // 1.0 顺时针, -1.0 逆时针
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -26,6 +27,7 @@ export default function RobotPerformancePage() {
   const [playbackProgress, setPlaybackProgress] = useState({ current: 0, total: 0, progress: 0 });
   const [armStatus, setArmStatus] = useState<{ right: any; left: any }>({ right: {}, left: {} });
   const [statusMessage, setStatusMessage] = useState<string>('');
+
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -49,8 +51,6 @@ export default function RobotPerformancePage() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
-      pingInterval: 30000,
-      pingTimeout: 60000,
     });
 
     socketInstance.on('connect', () => {
@@ -114,6 +114,8 @@ export default function RobotPerformancePage() {
       setStatusMessage(data.msg);
     });
 
+
+
     setSocket(socketInstance);
 
     return () => {
@@ -171,7 +173,7 @@ export default function RobotPerformancePage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ duration: rotationTimeInSeconds }),
+          body: JSON.stringify({ duration: rotationTimeInSeconds, direction: rotationDirection }),
         })
         .then(response => response.json())
         .then(data => {
@@ -254,6 +256,8 @@ export default function RobotPerformancePage() {
     
     socket.emit('get_status');
   };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-blue-950 dark:to-indigo-950 p-4 md:p-8">
@@ -348,7 +352,7 @@ export default function RobotPerformancePage() {
                   </div>
                 )}
 
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-5">
                   <Button
                     onClick={handleStartPlayback}
                     disabled={!isConnected || !selectedPlaybackFile || isPlayingBack}
@@ -387,6 +391,16 @@ export default function RobotPerformancePage() {
                     <RefreshCw className="mr-2 h-4 w-4" />
                     刷新状态
                   </Button>
+                  
+                  <Button
+                    onClick={() => window.location.href = '/record'}
+                    disabled={!isConnected}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <FileVideo className="mr-2 h-4 w-4" />
+                    动作录制
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -405,6 +419,106 @@ export default function RobotPerformancePage() {
                 {actionOptions.map((action) => {
                   const Icon = action.icon;
                   const isSelected = selectedActions.includes(action.id);
+                  if (action.id === 'rotate') {
+                    // 为旋转动作添加左右旋转单选框
+                    return (
+                      <div
+                        key={action.id}
+                        className={`rounded-lg border-2 p-4 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
+                            : 'border-gray-200 dark:border-slate-700'
+                        } ${isPerforming ? 'opacity-50' : 'hover:border-blue-300 dark:hover:border-slate-600'}`}
+                      >
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => !isPerforming && handleActionToggle(action.id)}>
+                          <div
+                            className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-500'
+                                : 'border-gray-300 dark:border-slate-600'
+                            }`}
+                          >
+                            {isSelected && (
+                              <svg
+                                className="h-3.5 w-3.5 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 text-base font-medium">
+                              <Icon className="h-4 w-4" />
+                              {action.label}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* 左右旋转单选框 */}
+                        {isSelected && !isPerforming && (
+                          <div className="mt-4 space-y-2">
+                            <Label className="text-sm font-medium">旋转方向</Label>
+                            <div className="flex gap-4">
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setRotationDirection(1.0)}>
+                                <div
+                                  className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                                    rotationDirection === 1.0
+                                      ? 'border-blue-500 bg-blue-500'
+                                      : 'border-gray-300 dark:border-slate-600'
+                                  }`}
+                                >
+                                  {rotationDirection === 1.0 && (
+                                    <svg
+                                      className="h-3.5 w-3.5 text-white"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span>左旋转</span>
+                              </div>
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setRotationDirection(-1.0)}>
+                                <div
+                                  className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                                    rotationDirection === -1.0
+                                      ? 'border-blue-500 bg-blue-500'
+                                      : 'border-gray-300 dark:border-slate-600'
+                                  }`}
+                                >
+                                  {rotationDirection === -1.0 && (
+                                    <svg
+                                      className="h-3.5 w-3.5 text-white"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span>右旋转</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   return (
                     <div
                       key={action.id}
@@ -589,6 +703,8 @@ export default function RobotPerformancePage() {
               )}
             </Button>
           </div>
+
+
         </div>
       </div>
     </div>

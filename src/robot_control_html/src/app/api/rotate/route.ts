@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     // 解析请求体
     const body = await request.json();
-    const { duration } = body;
+    const { duration, direction } = body;
     
     // 验证参数
     if (!duration || typeof duration !== 'number') {
@@ -16,8 +16,11 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // 验证方向参数，默认为 1.0（顺时针）
+    const rotationDirection = direction && typeof direction === 'number' ? direction : 1.0;
+    
     // 执行旋转服务调用命令
-    const command = `cd /home/aidlux/Haier_robot_ws && source install/setup.bash && ros2 service call /robot_mover/rotate robot_mover/srv/Rotate "{duration: ${duration}}"`;
+    const command = `cd /home/aidlux/Haier_robot_ws && source install/setup.bash && ros2 service call /robot_mover/rotate robot_mover/srv/Rotate "{duration: ${duration}, direction: ${rotationDirection}}"`;
     
     // 使用 exec 执行命令
     const result = await new Promise<string>((resolve, reject) => {
