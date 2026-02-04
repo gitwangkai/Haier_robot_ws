@@ -165,7 +165,7 @@ class HumanFollower(Node):
     def rotate_callback(self, request, response):
         """
         旋转服务回调函数
-        根据指定时间旋转机器人
+        根据指定时间和方向旋转机器人
         """
         with self.rotation_lock:
             if self.rotation_active:
@@ -173,11 +173,12 @@ class HumanFollower(Node):
                 response.message = "Rotation already in progress"
                 return response
             
-            # 设置旋转参数 - 使用请求中的持续时间
+            # 设置旋转参数 - 使用请求中的持续时间和方向
             self.rotation_active = True
             self.rotation_angle = 0.0
             self.rotation_speed = 0.5
-            self.rotation_direction = 1.0  # 1.0 for clockwise, -1.0 for counter-clockwise
+            # 从请求中获取旋转方向，默认为 1.0（顺时针）
+            self.rotation_direction = request.direction if hasattr(request, 'direction') else 1.0
             rotation_duration = request.duration  # 从请求中获取旋转时间
             
             # 启动旋转线程

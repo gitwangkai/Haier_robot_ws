@@ -1,4 +1,5 @@
 float64 duration
+float64 direction
 ---
 bool success
 string message
